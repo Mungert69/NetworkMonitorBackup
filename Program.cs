@@ -16,10 +16,13 @@ namespace NetworkMonitorBackup
     {
         private static async Task Main(string[] args)
         {
-            // Configure Serilog for file logging
-            Log.Logger = new LoggerConfiguration()
-                .WriteTo.File("logs/network_monitor_backup.log", rollingInterval: RollingInterval.Day)
-                .CreateLogger();
+          Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+    .Enrich.FromLogContext()
+    .WriteTo.File("logs/network_monitor_backup.log", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
 
             // Configure services
             var configuration = new ConfigurationBuilder()
