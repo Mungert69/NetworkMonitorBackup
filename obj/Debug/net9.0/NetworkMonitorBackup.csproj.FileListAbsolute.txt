@@ -37,3 +37,6 @@
 /home/mahadeva/code/NetworkMonitorBackup/obj/Debug/net9.0/NetworkMonitorBackup.sourcelink.json
 /home/mahadeva/code/NetworkMonitorBackup/bin/Debug/net9.0/Microsoft.Extensions.Logging.Configuration.dll
 /home/mahadeva/code/NetworkMonitorBackup/bin/Debug/net9.0/Microsoft.Extensions.Logging.Console.dll
+/home/mahadeva/code/NetworkMonitorBackup/bin/Debug/net9.0/Serilog.dll
+/home/mahadeva/code/NetworkMonitorBackup/bin/Debug/net9.0/Serilog.Extensions.Logging.dll
+/home/mahadeva/code/NetworkMonitorBackup/bin/Debug/net9.0/Serilog.Sinks.File.dll

@@ -5,6 +5,10 @@ using NetworkMonitorBackup.Services;
 using NetworkMonitorBackup.Models;
 using System;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using Serilog;
+using Serilog.Events;
+
 
 namespace NetworkMonitorBackup
 {
@@ -12,6 +16,11 @@ namespace NetworkMonitorBackup
     {
         private static async Task Main(string[] args)
         {
+            // Configure Serilog for file logging
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.File("logs/network_monitor_backup.log", rollingInterval: RollingInterval.Day)
+                .CreateLogger();
+
             // Configure services
             var configuration = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", optional: false)
@@ -22,9 +31,8 @@ namespace NetworkMonitorBackup
                 .AddHttpClient()
                 .AddLogging(loggingBuilder =>
                 {
-                    loggingBuilder.ClearProviders();
-                    loggingBuilder.AddConsole();
-                    loggingBuilder.SetMinimumLevel(LogLevel.Information);
+                    loggingBuilder.ClearProviders(); // Remove default console logger
+                    loggingBuilder.AddSerilog();    // Add Serilog file logger
                 })
                 .AddTransient<IContaboService, ContaboService>()
                 .AddTransient<SnapshotService>()
@@ -169,17 +177,35 @@ namespace NetworkMonitorBackup
                             break;
 
                         case "3": // Delete Snapshot
-                            Console.Write("Enter Snapshot ID: ");
-                            var snapshotId = Console.ReadLine();
+                            Console.WriteLine("\nFetching snapshots for this instance...");
+                            var snapshotsReport = await snapshotService.ListSnapshotsAsync(instanceId);
 
-                            if (!string.IsNullOrEmpty(snapshotId))
+                            if (snapshotsReport.Success && snapshotsReport.Data is List<SnapshotResponse> snapshots && snapshots.Count > 0)
                             {
-                                var deleteSnapshotReport = await snapshotService.DeleteSnapshotAsync(instanceId, snapshotId);
-                                DisplayResult(deleteSnapshotReport);
+                                Console.WriteLine("\nAvailable Snapshots:");
+                                for (int i = 0; i < snapshots.Count; i++)
+                                {
+                                    var snapshot = snapshots[i];
+                                    Console.WriteLine($"{i + 1}. Snapshot ID: {snapshot.SnapshotId}, Name: {snapshot.Name}");
+                                }
+
+                                Console.Write("\nEnter the number of the snapshot to delete: ");
+                                if (int.TryParse(Console.ReadLine(), out var index) && index > 0 && index <= snapshots.Count)
+                                {
+                                    var selectedSnapshotId = snapshots[index - 1].SnapshotId;
+                                    var deleteSnapshotReport = await snapshotService.DeleteSnapshotAsync(instanceId, selectedSnapshotId);
+
+                                    DisplayResult(deleteSnapshotReport);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Invalid selection. Please choose a valid snapshot number.");
+                                }
                             }
                             else
                             {
-                                Console.WriteLine("Invalid Snapshot ID.");
+                                DisplayResult(snapshotsReport);
+                                Console.WriteLine("No snapshots available for deletion.");
                             }
                             break;
 
@@ -217,6 +243,7 @@ namespace NetworkMonitorBackup
                 }
             }
         }
+
 
         private static void DisplayResult(ResultObj result)
         {
