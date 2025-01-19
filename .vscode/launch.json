@@ -8,7 +8,8 @@
         "name": "C#: NetworkMonitorBackup Debug",
         "type": "dotnet",
         "request": "launch",
-        "projectPath": "${workspaceFolder}/NetworkMonitorBackup.csproj"
+        "projectPath": "${workspaceFolder}/NetworkMonitorBackup.csproj",
+        "console": "externalTerminal"
     }
     ]
 }

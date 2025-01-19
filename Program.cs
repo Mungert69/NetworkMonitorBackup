@@ -70,19 +70,29 @@ namespace NetworkMonitorBackup
                         case "4": // Select an Instance to Manage
                             var instancesReport = await snapshotService.ListInstancesAsync();
 
-                            if (instancesReport.Success && instancesReport.Data is InstanceResponse instanceResponse)
+                            // Check if the report was successful
+                            if (instancesReport.Success)
                             {
-                                DisplayInstancesWithIndexes(instanceResponse);
-
-                                Console.WriteLine("\nEnter the number corresponding to the Instance ID to manage:");
-                                if (int.TryParse(Console.ReadLine(), out var index) && index > 0 && index <= instanceResponse.Data.Count)
+                                if (instancesReport.Data is InstanceResponse instanceResponse && instanceResponse.Data.Count > 0)
                                 {
-                                    var selectedInstanceId = instanceResponse.Data[index - 1].InstanceId;
-                                    await ManageInstance(snapshotService, selectedInstanceId);
+                                    // Display the instances with indexes
+                                    DisplayInstancesWithIndexes(instanceResponse);
+
+                                    // Prompt user to select an instance by its index
+                                    Console.WriteLine("\nEnter the number corresponding to the Instance ID to manage:");
+                                    if (int.TryParse(Console.ReadLine(), out var index) && index > 0 && index <= instanceResponse.Data.Count)
+                                    {
+                                        var selectedInstanceId = instanceResponse.Data[index - 1].InstanceId;
+                                        await ManageInstance(snapshotService, selectedInstanceId);
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Invalid selection. Please choose a valid number.");
+                                    }
                                 }
                                 else
                                 {
-                                    Console.WriteLine("Invalid selection.");
+                                    Console.WriteLine("No instances available to manage.");
                                 }
                             }
                             else
@@ -90,7 +100,6 @@ namespace NetworkMonitorBackup
                                 DisplayResult(instancesReport);
                             }
                             break;
-
                         case "5": // Exit
                             Console.WriteLine("Exiting Network Monitor Backup. Goodbye!");
                             return;
