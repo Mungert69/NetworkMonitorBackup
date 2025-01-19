@@ -40,10 +40,9 @@ namespace NetworkMonitorBackup
                 Console.WriteLine("\n=== Network Monitor Backup (Level 1) ===");
                 Console.WriteLine("1. List All Instances");
                 Console.WriteLine("2. Display Instances with Snapshots");
-                Console.WriteLine("3. Delete All Snapshots (All Instances)");
-                Console.WriteLine("4. Refresh Snapshots (All Instances)");
-                Console.WriteLine("5. Select an Instance to Manage");
-                Console.WriteLine("6. Exit");
+                Console.WriteLine("3. Refresh Snapshots (All Instances)");
+                Console.WriteLine("4. Select an Instance to Manage");
+                Console.WriteLine("5. Exit");
                 Console.Write("Enter your choice: ");
 
                 var choice = Console.ReadLine();
@@ -62,36 +61,42 @@ namespace NetworkMonitorBackup
                             DisplayResult(displayInstancesReport);
                             break;
 
-                        case "3": // Delete All Snapshots
-                            Console.WriteLine("Deleting all snapshots for all instances...");
-                            var deleteAllReport = await snapshotService.DeleteAllSnapshotsAsync();
-                            DisplayResult(deleteAllReport);
-                            break;
-
-                        case "4": // Refresh Snapshots
+                        case "3": // Refresh Snapshots
                             Console.WriteLine("Refreshing snapshots for all instances...");
                             var refreshAllReport = await snapshotService.RefreshSnapshotsAsync();
                             DisplayResult(refreshAllReport);
                             break;
 
-                        case "5": // Select an Instance to Manage
-                            Console.Write("Enter Instance ID: ");
-                            if (long.TryParse(Console.ReadLine(), out var instanceId))
+                        case "4": // Select an Instance to Manage
+                            var instancesReport = await snapshotService.ListInstancesAsync();
+
+                            if (instancesReport.Success && instancesReport.Data is InstanceResponse instanceResponse)
                             {
-                                await ManageInstance(snapshotService, instanceId);
+                                DisplayInstancesWithIndexes(instanceResponse);
+
+                                Console.WriteLine("\nEnter the number corresponding to the Instance ID to manage:");
+                                if (int.TryParse(Console.ReadLine(), out var index) && index > 0 && index <= instanceResponse.Data.Count)
+                                {
+                                    var selectedInstanceId = instanceResponse.Data[index - 1].InstanceId;
+                                    await ManageInstance(snapshotService, selectedInstanceId);
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Invalid selection.");
+                                }
                             }
                             else
                             {
-                                Console.WriteLine("Invalid Instance ID.");
+                                DisplayResult(instancesReport);
                             }
                             break;
 
-                        case "6": // Exit
+                        case "5": // Exit
                             Console.WriteLine("Exiting Network Monitor Backup. Goodbye!");
                             return;
 
                         default:
-                            Console.WriteLine("Invalid option. Please select a number between 1 and 6.");
+                            Console.WriteLine("Invalid option. Please select a number between 1 and 5.");
                             break;
                     }
 
@@ -108,6 +113,16 @@ namespace NetworkMonitorBackup
             }
         }
 
+        private static void DisplayInstancesWithIndexes(InstanceResponse instanceResponse)
+        {
+            Console.WriteLine("\nInstances:");
+            for (var i = 0; i < instanceResponse.Data.Count; i++)
+            {
+                var instance = instanceResponse.Data[i];
+                Console.WriteLine($"{i + 1}. Instance ID: {instance.InstanceId}, Name: {instance.Name}, Status: {instance.Status}");
+            }
+        }
+
         private static async Task ManageInstance(SnapshotService snapshotService, long instanceId)
         {
             while (true)
@@ -118,7 +133,8 @@ namespace NetworkMonitorBackup
                 Console.WriteLine("1. List Snapshots");
                 Console.WriteLine("2. Create Snapshot");
                 Console.WriteLine("3. Delete Snapshot");
-                Console.WriteLine("4. Return to Main Menu");
+                Console.WriteLine("4. !! Delete All Snapshots !!");
+                Console.WriteLine("5. Return to Main Menu");
                 Console.Write("Enter your choice: ");
 
                 var choice = Console.ReadLine();
@@ -158,11 +174,28 @@ namespace NetworkMonitorBackup
                             }
                             break;
 
-                        case "4": // Return to Main Menu
+                        case "4": // Delete All Snapshots
+                            Console.WriteLine("!! WARNING: This will delete all snapshots for this instance !!");
+                            Console.Write("Type 'CONFIRM' to proceed: ");
+                            var confirmation = Console.ReadLine();
+
+                            if (confirmation?.ToUpper() == "CONFIRM")
+                            {
+                                Console.WriteLine("Deleting all snapshots for this instance...");
+                                var deleteAllReport = await snapshotService.DeleteAllSnapshotsAsync(instanceId);
+                                DisplayResult(deleteAllReport);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Operation cancelled. No snapshots were deleted.");
+                            }
+                            break;
+
+                        case "5": // Return to Main Menu
                             return;
 
                         default:
-                            Console.WriteLine("Invalid option. Please select a number between 1 and 4.");
+                            Console.WriteLine("Invalid option. Please select a number between 1 and 5.");
                             break;
                     }
 
