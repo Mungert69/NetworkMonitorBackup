@@ -21,8 +21,6 @@
     <CopyToOutputDirectory>Always</CopyToOutputDirectory>
   </Content>
 </ItemGroup>
- <ItemGroup>
-    <ProjectReference Include="..\NetworkMonitor\NetworkMonitor.csproj" />
-  </ItemGroup>
+
 
 </Project>
