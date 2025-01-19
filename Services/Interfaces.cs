@@ -32,5 +32,7 @@ namespace NetworkMonitorBackup.Services
         /// <param name="request">The snapshot creation request containing the name and description.</param>
         /// <returns>A ResultObj containing the operation status, message, and data (SnapshotResponse object).</returns>
         Task<ResultObj> CreateSnapshotAsync(long instanceId, SnapshotRequest request);
+
+        Task<ResultObj> DeleteSnapshotAsync(long instanceId, string snapshotId);
     }
 }

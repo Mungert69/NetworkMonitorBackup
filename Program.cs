@@ -2,8 +2,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NetworkMonitorBackup.Services;
-using NetworkMonitorBackup.Models;
-using NetworkMonitor.Objects;
 
 namespace NetworkMonitorBackup
 {
@@ -18,98 +16,93 @@ namespace NetworkMonitorBackup
             var services = new ServiceCollection()
                 .AddSingleton<IConfiguration>(configuration)
                 .AddHttpClient()
-                .AddLogging()
+               .AddLogging(loggingBuilder =>
+                {
+                    loggingBuilder.ClearProviders(); // Remove default providers
+                    loggingBuilder.AddConsole(); // Add console logging
+                    loggingBuilder.SetMinimumLevel(LogLevel.Information); // Set minimum log level
+                })
                 .AddTransient<IContaboService, ContaboService>()
+                .AddTransient<SnapshotService>()
                 .BuildServiceProvider();
 
             var logger = services.GetRequiredService<ILogger<Program>>();
-            var contaboService = services.GetRequiredService<IContaboService>();
+            var snapshotService = services.GetRequiredService<SnapshotService>();
 
             Console.WriteLine("1. List Instances\n2. List Snapshots\n3. Create Snapshot");
             var choice = Console.ReadLine();
 
-            switch (choice)
+            try
             {
-                case "1": // List Instances
-                    var instancesResult = await contaboService.ListInstancesAsync();
+                switch (choice)
+                {
+                    case "1": // List Instances
+                        await snapshotService.ListInstancesAsync();
+                        break;
 
-                    if (instancesResult.Success)
-                    {
-                        var instanceResponse = (InstanceResponse)instancesResult.Data!;
-                        foreach (var instance in instanceResponse.Data)
+                    case "2": // List Snapshots
+                        Console.Write("Enter Instance ID: ");
+                        if (long.TryParse(Console.ReadLine(), out var instanceIdForSnapshots))
                         {
-                            Console.WriteLine($"ID: {instance.InstanceId}, Name: {instance.Name}, Status: {instance.Status}");
+                            await snapshotService.ListSnapshotsAsync(instanceIdForSnapshots);
                         }
-                    }
-                    else
-                    {
-                        logger.LogError(instancesResult.Message);
-                        Console.WriteLine(instancesResult.Message);
-                    }
-                    break;
-
-                case "2": // List Snapshots
-                    Console.Write("Enter Instance ID: ");
-                    if (long.TryParse(Console.ReadLine(), out var instanceIdForSnapshots))
-                    {
-                        var snapshotsResult = await contaboService.ListSnapshotsAsync(instanceIdForSnapshots);
-
-                        if (snapshotsResult.Success)
+                        else
                         {
-                            var snapshots = (List<SnapshotResponse>)snapshotsResult.Data!;
-                            foreach (var snapshot in snapshots)
+                            Console.WriteLine("Invalid Instance ID.");
+                        }
+                        break;
+
+                    case "3": // Create Snapshot
+                        Console.Write("Enter Instance ID: ");
+                        if (long.TryParse(Console.ReadLine(), out var instanceIdForSnapshotCreation))
+                        {
+                            Console.Write("Enter Snapshot Name: ");
+                            var name = Console.ReadLine();
+
+                            Console.Write("Enter Snapshot Description: ");
+                            var description = Console.ReadLine();
+
+                            await snapshotService.CreateSnapshotAsync(instanceIdForSnapshotCreation, name, description);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Invalid Instance ID.");
+                        }
+                        break;
+                    case "4": // Delete Snapshot
+                        Console.Write("Enter Instance ID: ");
+                        if (long.TryParse(Console.ReadLine(), out var instanceIdForSnapshotDeletion))
+                        {
+                            Console.Write("Enter Snapshot ID: ");
+                            var snapshotId = Console.ReadLine();
+
+                            if (!string.IsNullOrEmpty(snapshotId))
                             {
-                                Console.WriteLine($"{snapshot.SnapshotId}: {snapshot.Name} - {snapshot.Description}");
+                                await snapshotService.DeleteSnapshotAsync(instanceIdForSnapshotDeletion, snapshotId);
+                            }
+                            else
+                            {
+                                Console.WriteLine("Invalid Snapshot ID.");
                             }
                         }
                         else
                         {
-                            logger.LogError(snapshotsResult.Message);
-                            Console.WriteLine(snapshotsResult.Message);
+                            Console.WriteLine("Invalid Instance ID.");
                         }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Invalid Instance ID.");
-                    }
-                    break;
+                        break;
+                      case "5": // Refresh Snapshots
+            await snapshotService.RefreshSnapshotsAsync();
+            break;
 
-                case "3": // Create Snapshot
-                    Console.Write("Enter Instance ID: ");
-                    if (long.TryParse(Console.ReadLine(), out var instanceIdForSnapshotCreation))
-                    {
-                        Console.Write("Enter Snapshot Name: ");
-                        var name = Console.ReadLine();
-
-                        Console.Write("Enter Snapshot Description: ");
-                        var description = Console.ReadLine();
-
-                        var createSnapshotResult = await contaboService.CreateSnapshotAsync(instanceIdForSnapshotCreation, new SnapshotRequest
-                        {
-                            Name = name,
-                            Description = description
-                        });
-
-                        if (createSnapshotResult.Success)
-                        {
-                            var snapshot = (SnapshotResponse)createSnapshotResult.Data!;
-                            Console.WriteLine($"Snapshot Created: {snapshot.SnapshotId}");
-                        }
-                        else
-                        {
-                            logger.LogError(createSnapshotResult.Message);
-                            Console.WriteLine(createSnapshotResult.Message);
-                        }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Invalid Instance ID.");
-                    }
-                    break;
-
-                default:
-                    Console.WriteLine("Invalid option. Please select 1, 2, or 3.");
-                    break;
+                    default:
+                        Console.WriteLine("Invalid option. Please select 1, 2, 3, 4, or 5.");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An unexpected error occurred.");
+                Console.WriteLine("An unexpected error occurred: " + ex.Message);
             }
         }
     }

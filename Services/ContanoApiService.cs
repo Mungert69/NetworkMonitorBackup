@@ -29,11 +29,11 @@ namespace NetworkMonitorBackup.Services
             _clientSecret = contaboConfig["ClientSecret"];
             _apiUser = contaboConfig["ApiUser"];
             _apiPassword = contaboConfig["ApiPassword"];
-             // Set the BaseAddress for the HttpClient
-    _httpClient.BaseAddress = new Uri("https://api.contabo.com");
+            // Set the BaseAddress for the HttpClient
+            _httpClient.BaseAddress = new Uri("https://api.contabo.com");
         }
 
-    public async Task<ResultObj> AuthenticateAsync()
+        public async Task<ResultObj> AuthenticateAsync()
         {
             try
             {
@@ -54,7 +54,7 @@ namespace NetworkMonitorBackup.Services
                     requestPayload
                 );
 
-                _logger.LogDebug("Received authentication response with status code: {StatusCode}", response.StatusCode);
+                _logger.LogInformation("Received authentication response with status code: {StatusCode}", response.StatusCode);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -68,7 +68,7 @@ namespace NetworkMonitorBackup.Services
                 else
                 {
                     var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.LogError("Authentication failed. StatusCode: {StatusCode}, Response: {ErrorContent}", 
+                    _logger.LogError("Authentication failed. StatusCode: {StatusCode}, Response: {ErrorContent}",
                         response.StatusCode, errorContent);
 
                     return new ResultObj($"Authentication failed: {errorContent}", false);
@@ -81,7 +81,7 @@ namespace NetworkMonitorBackup.Services
             }
         }
 
-        
+
 
         public async Task<ResultObj> ListInstancesAsync()
         {
@@ -95,7 +95,7 @@ namespace NetworkMonitorBackup.Services
                 request.Headers.Add("x-request-id", Guid.NewGuid().ToString());
 
                 var response = await _httpClient.SendAsync(request);
-                _logger.LogDebug("Received instances response with status code: {StatusCode}", response.StatusCode);
+                _logger.LogInformation("Received instances response with status code: {StatusCode}", response.StatusCode);
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -131,49 +131,48 @@ namespace NetworkMonitorBackup.Services
             return authResult.Success;
         }
 
-     public async Task<ResultObj> ListSnapshotsAsync(long instanceId)
-{
-    if (!await EnsureAuthenticatedAsync())
-    {
-        return new ResultObj("Authentication failed. Unable to list snapshots.", false);
-    }
-
-    try
-    {
-        var request = new HttpRequestMessage(HttpMethod.Get, $"/v1/compute/instances/{instanceId}/snapshots");
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
-        request.Headers.Add("x-request-id", Guid.NewGuid().ToString());
-
-        var response = await _httpClient.SendAsync(request);
-        _log
-        
-        
-        ger.LogDebug("Received snapshots response for InstanceId: {InstanceId} with StatusCode: {StatusCode}", instanceId, response.StatusCode);
-
-        if (response.IsSuccessStatusCode)
+        public async Task<ResultObj> ListSnapshotsAsync(long instanceId)
         {
-            var content = await response.Content.ReadAsStringAsync();
-            var snapshots = JsonConvert.DeserializeObject<List<SnapshotResponse>>(content);
+            if (!await EnsureAuthenticatedAsync())
+            {
+                return new ResultObj("Authentication failed. Unable to list snapshots.", false);
+            }
 
-            return new ResultObj("Snapshots retrieved successfully.", true) { Data = snapshots };
+            try
+            {
+                var request = new HttpRequestMessage(HttpMethod.Get, $"/v1/compute/instances/{instanceId}/snapshots");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                request.Headers.Add("x-request-id", Guid.NewGuid().ToString());
+
+                var response = await _httpClient.SendAsync(request);
+                _logger.LogDebug("Received snapshots response for InstanceId: {InstanceId} with StatusCode: {StatusCode}", instanceId, response.StatusCode);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    // Deserialize into SnapshotListResponse
+                    var snapshotListResponse = JsonConvert.DeserializeObject<SnapshotListResponse>(content);
+
+                    return new ResultObj("Snapshots retrieved successfully.", true) { Data = snapshotListResponse };
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Failed to list snapshots for InstanceId: {InstanceId}. StatusCode: {StatusCode}, Response: {ErrorContent}",
+                        instanceId, response.StatusCode, errorContent);
+
+                    return new ResultObj($"Failed to retrieve snapshots: {errorContent}", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unexpected error occurred while listing snapshots for InstanceId: {InstanceId}", instanceId);
+                return new ResultObj($"Failed to retrieve snapshots: {ex.Message}", false);
+            }
         }
-        else
-        {
-            var errorContent = await response.Content.ReadAsStringAsync();
-            _logger.LogError("Failed to list snapshots for InstanceId: {InstanceId}. StatusCode: {StatusCode}, Response: {ErrorContent}",
-                instanceId, response.StatusCode, errorContent);
 
-            return new ResultObj($"Failed to retrieve snapshots: {errorContent}", false);
-        }
-    }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "An unexpected error occurred while listing snapshots for InstanceId: {InstanceId}", instanceId);
-        return new ResultObj($"Failed to retrieve snapshots: {ex.Message}", false);
-    }
-}
 
-       
+
 
 
         public async Task<ResultObj> CreateSnapshotAsync(long instanceId, SnapshotRequest request)
@@ -185,24 +184,94 @@ namespace NetworkMonitorBackup.Services
 
             try
             {
+                // Log the request details for debugging
+                _logger.LogInformation("Creating snapshot for Instance ID: {InstanceId} with Name: {Name}, Description: {Description}", instanceId, request.Name, request.Description);
+
+                // Serialize the request body
+                var requestBody = JsonConvert.SerializeObject(new
+                {
+                    name = request.Name,
+                    description = request.Description
+                });
+
                 var httpRequest = new HttpRequestMessage(HttpMethod.Post, $"/v1/compute/instances/{instanceId}/snapshots")
                 {
-                    Content = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json")
+                    Content = new StringContent(requestBody, Encoding.UTF8, "application/json")
                 };
+
+                // Add required headers
                 httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                httpRequest.Headers.Add("x-request-id", Guid.NewGuid().ToString());
 
                 var response = await _httpClient.SendAsync(httpRequest);
-                response.EnsureSuccessStatusCode();
 
-                var content = await response.Content.ReadAsStringAsync();
-                var snapshot = JsonConvert.DeserializeObject<SnapshotResponse>(content);
-                return new ResultObj("Snapshot created successfully.", true) { Data = snapshot };
+                // Log the response status
+                _logger.LogInformation("Received response with status code: {StatusCode}", response.StatusCode);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    var snapshot = JsonConvert.DeserializeObject<SnapshotResponse>(content);
+
+                    _logger.LogInformation("Snapshot created successfully: {SnapshotId}", snapshot.SnapshotId);
+                    return new ResultObj("Snapshot created successfully.", true) { Data = snapshot };
+                }
+                else
+                {
+                    // Log the error response content
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Failed to create snapshot. StatusCode: {StatusCode}, Response: {ErrorContent}",
+                        response.StatusCode, errorContent);
+
+                    return new ResultObj($"Failed to create snapshot: {errorContent}", false);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to create snapshot for instance ID: {InstanceId}", instanceId);
-                return new ResultObj("Failed to create snapshot.", false);
+                _logger.LogError(ex, "An unexpected error occurred while creating snapshot for Instance ID: {InstanceId}", instanceId);
+                return new ResultObj($"Failed to create snapshot: {ex.Message}", false);
             }
         }
+        public async Task<ResultObj> DeleteSnapshotAsync(long instanceId, string snapshotId)
+        {
+            if (!await EnsureAuthenticatedAsync())
+            {
+                return new ResultObj("Authentication failed. Unable to delete snapshot.", false);
+            }
+
+            try
+            {
+                _logger.LogInformation("Deleting snapshot with ID: {SnapshotId} for Instance ID: {InstanceId}", snapshotId, instanceId);
+
+                var request = new HttpRequestMessage(HttpMethod.Delete, $"/v1/compute/instances/{instanceId}/snapshots/{snapshotId}");
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+                request.Headers.Add("x-request-id", Guid.NewGuid().ToString());
+
+                var response = await _httpClient.SendAsync(request);
+
+                _logger.LogInformation("Received response for deleting snapshot with status code: {StatusCode}", response.StatusCode);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    _logger.LogInformation("Snapshot deleted successfully: {SnapshotId}", snapshotId);
+                    return new ResultObj("Snapshot deleted successfully.", true);
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    _logger.LogError("Failed to delete snapshot. StatusCode: {StatusCode}, Response: {ErrorContent}",
+                        response.StatusCode, errorContent);
+
+                    return new ResultObj($"Failed to delete snapshot: {errorContent}", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unexpected error occurred while deleting snapshot with ID: {SnapshotId} for Instance ID: {InstanceId}", snapshotId, instanceId);
+                return new ResultObj($"Failed to delete snapshot: {ex.Message}", false);
+            }
+        }
+
+
     }
 }

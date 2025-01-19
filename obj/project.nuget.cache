@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "a5XVEsMxHBs=",
+  "dgSpecHash": "jjcvPBywid4=",
   "success": true,
   "projectFilePath": "/home/mahadeva/code/NetworkMonitorBackup/NetworkMonitorBackup.csproj",
   "expectedPackageFiles": [
@@ -35,6 +35,8 @@
     "/home/mahadeva/.nuget/packages/microsoft.extensions.http/9.0.1/microsoft.extensions.http.9.0.1.nupkg.sha512",
     "/home/mahadeva/.nuget/packages/microsoft.extensions.logging/9.0.1/microsoft.extensions.logging.9.0.1.nupkg.sha512",
     "/home/mahadeva/.nuget/packages/microsoft.extensions.logging.abstractions/9.0.1/microsoft.extensions.logging.abstractions.9.0.1.nupkg.sha512",
+    "/home/mahadeva/.nuget/packages/microsoft.extensions.logging.configuration/9.0.1/microsoft.extensions.logging.configuration.9.0.1.nupkg.sha512",
+    "/home/mahadeva/.nuget/packages/microsoft.extensions.logging.console/9.0.1/microsoft.extensions.logging.console.9.0.1.nupkg.sha512",
     "/home/mahadeva/.nuget/packages/microsoft.extensions.options/9.0.1/microsoft.extensions.options.9.0.1.nupkg.sha512",
     "/home/mahadeva/.nuget/packages/microsoft.extensions.options.configurationextensions/9.0.1/microsoft.extensions.options.configurationextensions.9.0.1.nupkg.sha512",
     "/home/mahadeva/.nuget/packages/microsoft.extensions.primitives/9.0.1/microsoft.extensions.primitives.9.0.1.nupkg.sha512",

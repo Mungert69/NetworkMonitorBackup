@@ -69,11 +69,5 @@ namespace NetworkMonitorBackup.Models
         public string Self { get; set; }
     }
 
-    public class Pagination
-    {
-        public int Size { get; set; }
-        public int TotalElements { get; set; }
-        public int TotalPages { get; set; }
-        public int Page { get; set; }
-    }
+   
 }
