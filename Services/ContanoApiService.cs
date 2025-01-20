@@ -211,8 +211,17 @@ namespace NetworkMonitorBackup.Services
                 if (response.IsSuccessStatusCode)
                 {
                     var content = await response.Content.ReadAsStringAsync();
-                    var snapshot = JsonConvert.DeserializeObject<SnapshotResponse>(content);
+                    var snapshotApiResponse = JsonConvert.DeserializeObject<SnapshotApiResponse>(content);
 
+                    if (snapshotApiResponse?.Data == null || snapshotApiResponse.Data.Count == 0)
+                    {
+                        var errorMessage = $"API response did not contain a valid snapshot for Instance ID: {instanceId}.";
+                        _logger.LogError(errorMessage);
+                        return new ResultObj(errorMessage, false);
+                    }
+
+                    // Retrieve the first snapshot
+                    var snapshot = snapshotApiResponse.Data[0];
                     _logger.LogInformation("Snapshot created successfully: {SnapshotId}", snapshot.SnapshotId);
                     return new ResultObj("Snapshot created successfully.", true) { Data = snapshot };
                 }
