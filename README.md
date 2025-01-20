@@ -1,6 +1,6 @@
 # Network Monitor Backup
 
-A lightweight and efficient tool for managing cloud snapshots, designed to simplify instance and snapshot management for cloud services. This tool provides a user-friendly CLI for listing, creating, and deleting snapshots, along with built-in logging for debugging and monitoring.
+A lightweight and efficient tool for managing cloud snapshots, designed to simplify instance and snapshot management for Contabo cloud services. This tool provides a user-friendly CLI for listing, creating, and deleting snapshots, along with built-in logging for debugging and monitoring.
 
 ---
 
@@ -22,7 +22,7 @@ A lightweight and efficient tool for managing cloud snapshots, designed to simpl
 
 ### Prerequisites
 
-- .NET 6.0 or later installed on your machine
+- .NET 9.0 or later installed on your machine
 - Access credentials for your cloud provider's API
 
 ### Steps
@@ -86,16 +86,6 @@ Logs are saved in the `logs` directory, with a new file created daily:
 ```
 logs/network_monitor_backup.log
 ```
-
-### Console Logging
-
-Real-time logs are displayed in the console with the following color-coded levels:
-- **INFO**: White
-- **SUCCESS**: Green
-- **WARNING**: Yellow
-- **ERROR**: Red
-- **DEBUG**: Gray
-
 ---
 
 ## Contributing
