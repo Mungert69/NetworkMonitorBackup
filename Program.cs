@@ -9,20 +9,22 @@ using System.Collections.Generic;
 using Serilog;
 using Serilog.Events;
 
-
 namespace NetworkMonitorBackup
 {
     internal class Program
     {
         private static async Task Main(string[] args)
         {
-          Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
-    .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
-    .Enrich.FromLogContext()
-    .WriteTo.File("logs/network_monitor_backup.log", rollingInterval: RollingInterval.Day)
-    .CreateLogger();
+            // Initialize ScreenLogger
+            var screenLogger = new ScreenLogger();
 
+            // Configure Serilog
+            Log.Logger = new LoggerConfiguration()
+                .MinimumLevel.Debug()
+                .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
+                .Enrich.FromLogContext()
+                .WriteTo.File("logs/network_monitor_backup.log", rollingInterval: RollingInterval.Day)
+                .CreateLogger();
 
             // Configure services
             var configuration = new ConfigurationBuilder()
@@ -32,11 +34,13 @@ namespace NetworkMonitorBackup
             var services = new ServiceCollection()
                 .AddSingleton<IConfiguration>(configuration)
                 .AddHttpClient()
+                .AddSingleton(screenLogger)
                 .AddLogging(loggingBuilder =>
                 {
-                    loggingBuilder.ClearProviders(); // Remove default console logger
-                    loggingBuilder.AddSerilog();    // Add Serilog file logger
+                    loggingBuilder.ClearProviders();
+                    loggingBuilder.AddSerilog(); // Use Serilog for file logging
                 })
+                .AddSingleton(typeof(ILogger<>), typeof(CompositeLogger<>)) // Register CompositeLogger
                 .AddTransient<IContaboService, ContaboService>()
                 .AddTransient<SnapshotService>()
                 .BuildServiceProvider();
@@ -46,221 +50,216 @@ namespace NetworkMonitorBackup
 
             while (true)
             {
-                // Level 1: Manage instances
-                Console.Clear();
-                Console.WriteLine("\n=== Network Monitor Backup (Level 1) ===");
-                Console.WriteLine("1. List All Instances");
-                Console.WriteLine("2. Display Instances with Snapshots");
-                Console.WriteLine("3. Refresh Snapshots (All Instances)");
-                Console.WriteLine("4. Select an Instance to Manage");
-                Console.WriteLine("5. Exit");
-                Console.Write("Enter your choice: ");
-
-                var choice = Console.ReadLine();
+                DisplayMainMenu();
+                var choice = GetInput("Enter your choice");
 
                 try
                 {
+
                     switch (choice)
                     {
-                        case "1": // List All Instances
-                            var listInstancesReport = await snapshotService.ListInstancesAsync();
-                            DisplayResult(listInstancesReport);
+                        case "1":
+                            DisplayResult(await snapshotService.ListInstancesAsync());
                             break;
-
-                        case "2": // Display Instances with Snapshots
-                            var displayInstancesReport = await snapshotService.DisplayInstancesWithSnapshotsAsync();
-                            DisplayResult(displayInstancesReport);
+                        case "2":
+                            DisplayResult(await snapshotService.DisplayInstancesWithSnapshotsAsync());
                             break;
-
-                        case "3": // Refresh Snapshots
+                        case "3":
                             Console.WriteLine("Refreshing snapshots for all instances...");
-                            var refreshAllReport = await snapshotService.RefreshSnapshotsAsync();
-                            DisplayResult(refreshAllReport);
+                            DisplayResult(await snapshotService.RefreshSnapshotsAsync());
                             break;
-
-                        case "4": // Select an Instance to Manage
-                            var instancesReport = await snapshotService.ListInstancesAsync();
-
-                            // Check if the report was successful
-                            if (instancesReport.Success)
-                            {
-                                if (instancesReport.Data is InstanceResponse instanceResponse && instanceResponse.Data.Count > 0)
-                                {
-                                    // Display the instances with indexes
-                                    DisplayInstancesWithIndexes(instanceResponse);
-
-                                    // Prompt user to select an instance by its index
-                                    Console.WriteLine("\nEnter the number corresponding to the Instance ID to manage:");
-                                    if (int.TryParse(Console.ReadLine(), out var index) && index > 0 && index <= instanceResponse.Data.Count)
-                                    {
-                                        var selectedInstanceId = instanceResponse.Data[index - 1].InstanceId;
-                                        await ManageInstance(snapshotService, selectedInstanceId);
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine("Invalid selection. Please choose a valid number.");
-                                    }
-                                }
-                                else
-                                {
-                                    Console.WriteLine("No instances available to manage.");
-                                }
-                            }
-                            else
-                            {
-                                DisplayResult(instancesReport);
-                            }
+                        case "4":
+                            await ManageInstanceSelection(snapshotService);
                             break;
-                        case "5": // Exit
+                        case "5":
                             Console.WriteLine("Exiting Network Monitor Backup. Goodbye!");
                             return;
-
                         default:
                             Console.WriteLine("Invalid option. Please select a number between 1 and 5.");
                             break;
                     }
-
-                    Console.WriteLine("\nPress Enter to return to the menu...");
-                    Console.ReadLine();
                 }
                 catch (Exception ex)
                 {
                     logger.LogError(ex, "An unexpected error occurred.");
-                    Console.WriteLine($"An unexpected error occurred: {ex.Message}");
-                    Console.WriteLine("\nPress Enter to return to the menu...");
-                    Console.ReadLine();
+                    DisplayError($"An unexpected error occurred: {ex.Message}");
                 }
+                AwaitUserAction("Press Enter to return to the menu...");
             }
         }
 
-        private static void DisplayInstancesWithIndexes(InstanceResponse instanceResponse)
+        private static void DisplayMainMenu()
         {
-            Console.WriteLine("\nInstances:");
+            ClearScreen();
+            Console.ForegroundColor = ConsoleColor.Cyan;
+            Console.WriteLine("=== Network Monitor Backup ===");
+            Console.ResetColor();
+            Console.WriteLine("1. List All Instances");
+            Console.WriteLine("2. Display Instances with Snapshots");
+            Console.WriteLine("3. Refresh Snapshots (All Instances)");
+            Console.WriteLine("4. Select an Instance to Manage");
+            Console.WriteLine("5. Exit");
+        }
+
+        private static async Task ManageInstanceSelection(SnapshotService snapshotService)
+        {
+            var instancesResult = await snapshotService.ListInstancesAsync();
+            if (!instancesResult.Success || instancesResult.Data is not InstanceResponse instanceResponse || instanceResponse.Data.Count == 0)
+            {
+                DisplayResult(instancesResult);
+                return;
+            }
+            ClearScreen();
+            Console.WriteLine("\nAvailable Instances:");
             for (var i = 0; i < instanceResponse.Data.Count; i++)
             {
                 var instance = instanceResponse.Data[i];
                 Console.WriteLine($"{i + 1}. Instance ID: {instance.InstanceId}, Name: {instance.Name}, Status: {instance.Status}");
             }
+
+            var selectedIndex = GetInputAsInt("Enter the number corresponding to the Instance ID to manage");
+            if (selectedIndex <= 0 || selectedIndex > instanceResponse.Data.Count)
+            {
+                DisplayError("Invalid selection. Please choose a valid number.");
+                return;
+            }
+
+            var selectedInstanceId = instanceResponse.Data[selectedIndex - 1].InstanceId;
+            await ManageInstance(snapshotService, selectedInstanceId);
         }
 
         private static async Task ManageInstance(SnapshotService snapshotService, long instanceId)
         {
             while (true)
             {
-                // Level 2: Manage snapshots for a selected instance
-                Console.Clear();
-                Console.WriteLine($"\n=== Managing Instance ID: {instanceId} (Level 2) ===");
+                ClearScreen();
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine($"\n=== Managing Instance ID: {instanceId} ===");
+                Console.ResetColor();
+
                 Console.WriteLine("1. List Snapshots");
                 Console.WriteLine("2. Create Snapshot");
                 Console.WriteLine("3. Delete Snapshot");
-                Console.WriteLine("4. !! Delete All Snapshots !!");
+                Console.WriteLine("4. Delete All Snapshots");
                 Console.WriteLine("5. Return to Main Menu");
-                Console.Write("Enter your choice: ");
 
-                var choice = Console.ReadLine();
+                var choice = GetInput("Enter your choice");
 
                 try
                 {
+
                     switch (choice)
                     {
-                        case "1": // List Snapshots
-                            var listSnapshotsReport = await snapshotService.ListSnapshotsAsync(instanceId);
-                            DisplayResult(listSnapshotsReport);
+                        case "1":
+                            DisplayResult(await snapshotService.ListSnapshotsAsync(instanceId));
                             break;
-
-                        case "2": // Create Snapshot
-                            Console.Write("Enter Snapshot Name: ");
-                            var name = Console.ReadLine();
-
-                            Console.Write("Enter Snapshot Description: ");
-                            var description = Console.ReadLine();
-
-                            var createSnapshotReport = await snapshotService.CreateSnapshotAsync(instanceId, name, description);
-                            DisplayResult(createSnapshotReport);
+                        case "2":
+                            var name = GetInput("Enter Snapshot Name");
+                            var description = GetInput("Enter Snapshot Description");
+                            DisplayResult(await snapshotService.CreateSnapshotAsync(instanceId, name, description));
                             break;
-
-                        case "3": // Delete Snapshot
-                            Console.WriteLine("\nFetching snapshots for this instance...");
-                            var snapshotsReport = await snapshotService.ListSnapshotsAsync(instanceId);
-
-                            if (snapshotsReport.Success && snapshotsReport.Data is List<SnapshotResponse> snapshots && snapshots.Count > 0)
+                        case "3":
+                            await DeleteSnapshot(snapshotService, instanceId);
+                            break;
+                        case "4":
+                            if (ConfirmAction("WARNING: This will delete all snapshots for this instance. Type 'CONFIRM' to proceed"))
                             {
-                                Console.WriteLine("\nAvailable Snapshots:");
-                                for (int i = 0; i < snapshots.Count; i++)
-                                {
-                                    var snapshot = snapshots[i];
-                                    Console.WriteLine($"{i + 1}. Snapshot ID: {snapshot.SnapshotId}, Name: {snapshot.Name}");
-                                }
-
-                                Console.Write("\nEnter the number of the snapshot to delete: ");
-                                if (int.TryParse(Console.ReadLine(), out var index) && index > 0 && index <= snapshots.Count)
-                                {
-                                    var selectedSnapshotId = snapshots[index - 1].SnapshotId;
-                                    var deleteSnapshotReport = await snapshotService.DeleteSnapshotAsync(instanceId, selectedSnapshotId);
-
-                                    DisplayResult(deleteSnapshotReport);
-                                }
-                                else
-                                {
-                                    Console.WriteLine("Invalid selection. Please choose a valid snapshot number.");
-                                }
-                            }
-                            else
-                            {
-                                DisplayResult(snapshotsReport);
-                                Console.WriteLine("No snapshots available for deletion.");
+                                DisplayResult(await snapshotService.DeleteAllSnapshotsAsync(instanceId));
                             }
                             break;
-
-                        case "4": // Delete All Snapshots
-                            Console.WriteLine("!! WARNING: This will delete all snapshots for this instance !!");
-                            Console.Write("Type 'CONFIRM' to proceed: ");
-                            var confirmation = Console.ReadLine();
-
-                            if (confirmation?.ToUpper() == "CONFIRM")
-                            {
-                                Console.WriteLine("Deleting all snapshots for this instance...");
-                                var deleteAllReport = await snapshotService.DeleteAllSnapshotsAsync(instanceId);
-                                DisplayResult(deleteAllReport);
-                            }
-                            else
-                            {
-                                Console.WriteLine("Operation cancelled. No snapshots were deleted.");
-                            }
-                            break;
-
-                        case "5": // Return to Main Menu
+                        case "5":
                             return;
-
                         default:
                             Console.WriteLine("Invalid option. Please select a number between 1 and 5.");
                             break;
                     }
-
-                    Console.WriteLine("\nPress Enter to return to the instance menu...");
-                    Console.ReadLine();
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"An error occurred: {ex.Message}");
+                    DisplayError($"An error occurred: {ex.Message}");
                 }
+                AwaitUserAction("Press Enter to return to the instance menu...");
             }
         }
 
+        private static async Task DeleteSnapshot(SnapshotService snapshotService, long instanceId)
+        {
+            var snapshotsResult = await snapshotService.ListSnapshotsAsync(instanceId);
+            if (!snapshotsResult.Success || snapshotsResult.Data is not List<SnapshotResponse> snapshots || snapshots.Count == 0)
+            {
+                DisplayResult(snapshotsResult);
+                return;
+            }
+            ClearScreen();
+            Console.WriteLine("\nAvailable Snapshots:");
+            for (var i = 0; i < snapshots.Count; i++)
+            {
+                var snapshot = snapshots[i];
+                Console.WriteLine($"{i + 1}. Snapshot ID: {snapshot.SnapshotId}, Name: {snapshot.Name}");
+            }
+
+            var selectedIndex = GetInputAsInt("Enter the number of the snapshot to delete");
+            if (selectedIndex <= 0 || selectedIndex > snapshots.Count)
+            {
+                DisplayError("Invalid selection. Please choose a valid snapshot number.");
+                return;
+            }
+
+            var selectedSnapshotId = snapshots[selectedIndex - 1].SnapshotId;
+            DisplayResult(await snapshotService.DeleteSnapshotAsync(instanceId, selectedSnapshotId));
+        }
 
         private static void DisplayResult(ResultObj result)
         {
+            ClearScreen();
+
             if (result.Success)
             {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("\n" + result.Message);
+                Console.ForegroundColor = ConsoleColor.Yellow; // Set pale yellow for success
+                Console.WriteLine($"\n[Success] {result.Message}");
             }
             else
             {
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("\n" + result.Message);
+                Console.ForegroundColor = ConsoleColor.Red; // Red for error
+                Console.WriteLine($"\n[Error] {result.Message}");
             }
+
+            Console.ResetColor(); // Reset to default color
+        }
+
+
+        private static void DisplayError(string message)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[Error] {message}");
             Console.ResetColor();
+        }
+
+        private static string GetInput(string prompt)
+        {
+            Console.Write($"\n{prompt}: ");
+            return Console.ReadLine() ?? string.Empty;
+        }
+
+        private static int GetInputAsInt(string prompt)
+        {
+            return int.TryParse(GetInput(prompt), out var result) ? result : -1;
+        }
+
+        private static bool ConfirmAction(string prompt)
+        {
+            return string.Equals(GetInput(prompt), "CONFIRM", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static void AwaitUserAction(string message)
+        {
+            Console.WriteLine($"\n{message}");
+            Console.ReadLine();
+        }
+
+        private static void ClearScreen()
+        {
+            Console.Clear();
         }
     }
 }
