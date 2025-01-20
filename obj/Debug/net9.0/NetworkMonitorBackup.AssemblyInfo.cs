@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NetworkMonitorBackup")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+98374a8834e723368fa19bbe9d3e25a7bc4d378d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+143d4fe61055430ab7022f11f62fea478b5dd186")]
 [assembly: System.Reflection.AssemblyProductAttribute("NetworkMonitorBackup")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NetworkMonitorBackup")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
