@@ -1,6 +1,6 @@
 # Network Monitor Backup
 
-A lightweight and efficient tool for managing cloud snapshots, designed to simplify instance and snapshot management for Contabo cloud services. This tool provides a user-friendly CLI for listing, creating, and deleting snapshots, along with built-in logging for debugging and monitoring.
+A lightweight and efficient tool for managing contabo cloud snapshots, designed to simplify instance and snapshot management for Contabo cloud services. This tool provides a user-friendly CLI for listing, creating, and deleting snapshots, along with built-in logging for debugging and monitoring.
 
 ---
 
@@ -131,7 +131,8 @@ This software is used by [Free Network Monitor](https://freenetworkmonitor.click
 
 ## Issues
 
-If you encounter any issues, please report them [here](https://github.com/mahadeva/network-monitor-backup/issues).
+The Contabo Api seems to have a rate limit. If you receive Unauthorised errors then try closing the App wait 2 mins and then try again. Please let me know if you find a resolution for this issue.
+If you encounter any other issues, please report them [here](https://github.com/mahadeva/network-monitor-backup/issues).
 
 ---
 
