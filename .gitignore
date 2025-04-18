@@ -354,3 +354,4 @@ nohup.out
 /data/*
 /.mono
 appsettings*
+.env
