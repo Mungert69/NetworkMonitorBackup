@@ -45,9 +45,10 @@ namespace NetworkMonitorBackup.Services
             {
                 report.AppendLine($"- Instance ID: {instance.InstanceId}, Name: {instance.Name}, Status: {instance.Status}");
             }
-            var result=new ResultObj(){
+            var result = new ResultObj()
+            {
                 Message = report.ToString(),
-                Success=true,
+                Success = true,
                 Data = instanceResponse
             };
             _logger.LogInformation("Instances listed successfully.");
@@ -87,9 +88,10 @@ namespace NetworkMonitorBackup.Services
                 report.AppendLine($"    AutoDelete : {(snapshot.AutoDeleteDate.HasValue ? snapshot.AutoDeleteDate.Value.ToString("yyyy-MM-dd HH:mm:ss") : "N/A")}");
             }
 
-            var result = new ResultObj(){
-                Success=true,
-                Message=report.ToString(),
+            var result = new ResultObj()
+            {
+                Success = true,
+                Message = report.ToString(),
                 Data = snapshots
             };
             _logger.LogInformation("Snapshots listed successfully for Instance ID: {InstanceId}", instanceId);
